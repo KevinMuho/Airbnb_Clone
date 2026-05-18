@@ -292,52 +292,31 @@ document.addEventListener('DOMContentLoaded', () => {
     window.__hosteraMainLoginHandler = true;
 
     loginForm.addEventListener('submit', async function (e) {
-        e.preventDefault();
-        const storage = window.AppStorage;
+    e.preventDefault();
 
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value.trim();
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
 
-        if (!username || !password) {
-            alert('❌ Please enter username and password!');
-            return;
-        }
+    if (!username || !password) {
+        alert('❌ Please enter username and password!');
+        return;
+    }
 
-        let users = storage ? storage.getLS('users', []) : JSON.parse(localStorage.getItem('users') || '[]');
+    try {
+        const result = await apiRequest("/Auth/login", "POST", {
+            username,
+            password
+        });
 
-        const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+        localStorage.setItem("currentUser", JSON.stringify(result.user));
 
-        if (!user) {
-            alert('❌ Username not found! Please sign up first.');
-            return;
-        }
+        alert(result.message);
 
-        const passwordOk = storage
-            ? await storage.verifyPassword(user, password)
-            : user.password === password;
-
-        if (!passwordOk) {
-            alert('❌ Incorrect password!');
-            return;
-        }
-
-        if (storage) {
-            const migratedUser = await storage.ensureUserHasPasswordHash(user);
-            if (migratedUser !== user) {
-                users = users.map(u => (u.username === user.username ? migratedUser : u));
-                storage.setLS('users', users);
-            }
-            storage.setCurrentUser(migratedUser);
-        } else {
-            localStorage.setItem('currentUser', JSON.stringify(user));
-        }
-
-        if (!localStorage.getItem('justSignedUp')) {
-            alert('✅ Welcome back, ' + user.firstName + '!');
-        }
-        localStorage.removeItem('justSignedUp');
-        window.location.href = '../index.html';
-    });
+        window.location.href = "../index.html";
+    } catch (error) {
+        alert("❌ " + error.message);
+    }
+});
 });
 
 document.addEventListener("DOMContentLoaded", function () {

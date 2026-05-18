@@ -655,209 +655,98 @@ if (phoneInput && window.intlTelInput) {
     }
 
     form.addEventListener("submit", async function (e) {
-        e.preventDefault();
+
+    e.preventDefault();
+
+    try {
 
         let firstName = document.getElementById("Fname").value.trim();
-let lastName = document.getElementById("Lname").value.trim();
-let gender = document.getElementById("gender").value;
-let dob = dobInput.value;
-let country = countryInput.value.trim();
-let phone = iti ? iti.getNumber() : "";
+        let lastName = document.getElementById("Lname").value.trim();
 
-let username = usernameInput ? usernameInput.value.trim() : "";
-let email = emailInput ? emailInput.value.trim() : "";
-let password = passwordInput ? passwordInput.value.trim() : "";
-let confirmPassword = confirmPasswordInput ? confirmPasswordInput.value.trim() : "";
-const persistedCurrentUser = isEditMode && currentUser
-    ? getUsers().find(u => u.username === currentUser.username) || null
-    : null;
+        let gender = document.getElementById("gender").value;
 
-if (!isEditMode) {
-    if (!firstName || !lastName || !gender || !dob || !country || !phone || !username || !email) {
-        alert("❌ Please fill in all required fields!");
-        return;
-    }
-} else {
-    firstName = firstName || currentUser.firstName;
-    lastName = lastName || currentUser.lastName;
-    gender = gender || currentUser.gender;
-    dob = dob || currentUser.dateOfBirth;
-    country = country || currentUser.country;
-    phone = phone || currentUser.phoneNumber;
-    username = username || currentUser.username;
-    email = email || currentUser.email;
-}
+        let dob = dobInput.value;
 
-        const usernameValid = isEditMode && usernameInput.value.trim() === "" ? true : checkUsername();
-const emailValid = isEditMode && emailInput.value.trim() === "" ? true : checkEmail();
-const dobValid = isEditMode && dobInput.value.trim() === "" ? true : validateDob();
-const phoneValid = isEditMode && phoneInput.value.trim() === "" ? true : validatePhone();
+        let country = countryInput.value.trim();
 
-if (!usernameValid) {
-    alert("❌ Please choose a valid username.");
-    return;
-}
+        let phone = iti ? iti.getNumber() : "";
 
-if (!emailValid) {
-    alert("❌ Please enter a valid email.");
-    return;
-}
+        let username = usernameInput.value.trim();
 
-if (!dobValid) {
-    alert("❌ You must be at least 18 years old.");
-    return;
-}
+        let email = emailInput.value.trim();
 
-if (!phoneValid) {
-    alert("❌ Please enter a valid phone number.");
-    return;
-}
+        let password = passwordInput.value.trim();
 
-        let finalPassword = password;
-        let finalPasswordHash = null;
+        let confirmPassword = confirmPasswordInput.value.trim();
 
-if (!isEditMode) {
-    if (!password || !confirmPassword) {
-        alert("❌ Please fill in all password fields!");
-        return;
-    }
+        if (!firstName || !lastName || !gender || !dob || !country || !phone || !username || !email || !password) {
 
-    const passwordValid = validatePasswordLive();
-    const confirmValid = validateConfirmPasswordLive();
-
-    if (!passwordValid) {
-        alert("❌ Password does not meet the requirements.");
-        return;
-    }
-
-    if (!confirmValid) {
-        alert("❌ Passwords do not match!");
-        return;
-    }
-} else {
-    if (password === "" && confirmPassword === "") {
-        finalPassword = persistedCurrentUser && typeof persistedCurrentUser.password === "string"
-            ? persistedCurrentUser.password
-            : "";
-        finalPasswordHash = persistedCurrentUser ? persistedCurrentUser.passwordHash || null : null;
-
-        if (!finalPassword && !finalPasswordHash) {
-            alert("❌ Please enter a new password to secure your account.");
+            alert("❌ Please fill in all required fields!");
             return;
         }
-    } else {
+
+        const usernameValid = checkUsername();
+        const emailValid = checkEmail();
+        const dobValid = validateDob();
+        const phoneValid = validatePhone();
+
+        if (!usernameValid) {
+            alert("❌ Invalid username.");
+            return;
+        }
+
+        if (!emailValid) {
+            alert("❌ Invalid email.");
+            return;
+        }
+
+        if (!dobValid) {
+            alert("❌ You must be at least 18 years old.");
+            return;
+        }
+
+        if (!phoneValid) {
+            alert("❌ Invalid phone number.");
+            return;
+        }
+
         const passwordValid = validatePasswordLive();
-        const confirmValid = validateConfirmPasswordLive();
 
         if (!passwordValid) {
-            alert("❌ Password does not meet the requirements.");
+            alert("❌ Password does not meet requirements.");
             return;
         }
 
-        if (!confirmValid) {
-            alert("❌ Passwords do not match!");
+        if (password !== confirmPassword) {
+            alert("❌ Passwords do not match.");
             return;
         }
 
-        finalPasswordHash = storage
-            ? await storage.hashPassword(finalPassword)
-            : finalPassword;
+        const result = await apiRequest(
+            "/Auth/register",
+            "POST",
+            {
+                firstName,
+                lastName,
+                username,
+                email,
+                password,
+                gender,
+                dateOfBirth: dob,
+                country,
+                phoneNumber: phone
+            }
+        );
+
+        alert(result.message);
+
+        window.location.href = "login.html";
+
     }
-}
+    catch (error) {
 
-        if (!isEditMode) {
-            finalPasswordHash = storage
-                ? await storage.hashPassword(finalPassword)
-                : finalPassword;
-        } else if (storage && !finalPasswordHash && finalPassword) {
-            finalPasswordHash = await storage.hashPassword(finalPassword);
-        }
-
-        let users = getUsers();
-
-        const finalUser = {
-            firstName: firstName,
-            lastName: lastName,
-            gender: gender,
-            dateOfBirth: dob,
-            country: country,
-            phoneNumber: phone,
-            username: username,
-            email: email,
-            passwordHash: finalPasswordHash,
-            createdAt: isEditMode && currentUser ? currentUser.createdAt : new Date().toISOString()
-        };
-
-        if (!storage) {
-            finalUser.password = finalPassword;
-        }
-
-        if (isEditMode && currentUser) {
-            const oldUsername = currentUser.username;
-            const userIndex = users.findIndex(u => u.username === currentUser.username);
-
-            if (userIndex === -1) {
-                alert("❌ User not found.");
-                return;
-            }
-
-            const usernameTaken = users.some(
-                (u, i) => i !== userIndex && u.username.toLowerCase() === username.toLowerCase()
-            );
-            if (usernameTaken) {
-                alert("❌ Username already taken!");
-                return;
-            }
-
-            const emailTaken = users.some(
-                (u, i) => i !== userIndex && u.email.toLowerCase() === email.toLowerCase()
-            );
-            if (emailTaken) {
-                alert("❌ Email already registered!");
-                return;
-            }
-
-            users[userIndex] = finalUser;
-
-            setUsers(users);
-            migrateUsernameReferences(oldUsername, finalUser.username);
-            if (storage) {
-                storage.setCurrentUser(finalUser);
-            } else {
-                localStorage.setItem("currentUser", JSON.stringify(finalUser));
-            }
-            localStorage.removeItem("editingAccount");
-
-            alert("✅ Account updated successfully!");
-            window.location.href = "account.html";
-        } else {
-            const usernameExists = users.some(
-                user => user.username.toLowerCase() === username.toLowerCase()
-            );
-            if (usernameExists) {
-                alert("❌ Username already taken!");
-                return;
-            }
-
-            const emailExists = users.some(
-                user => user.email.toLowerCase() === email.toLowerCase()
-            );
-            if (emailExists) {
-                alert("❌ Email already registered!");
-                return;
-            }
-
-            users.push(finalUser);
-            setUsers(users);
-            if (storage) {
-                storage.setCurrentUser(finalUser);
-            } else {
-                localStorage.setItem("currentUser", JSON.stringify(finalUser));
-            }
-
-            alert("✅ Account created successfully! Welcome " + firstName + "!");
-            window.location.href = "../index.html";
-        }
-    });
+        alert(error.message);
+    }
+});
 
 });

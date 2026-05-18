@@ -55,14 +55,17 @@ function checkUserLogin() {
     return currentUser;
 }
 
-function getMyProperties() {
-    const currentUser = getCurrentSessionUser();
-    if (!currentUser) return [];
-    
-    return getStoredProperties().filter(prop => prop.owner === currentUser.username);
+async function getMyProperties() {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
+
+    if (!currentUser || !currentUser.id) {
+        return [];
+    }
+
+    return await apiRequest(`/Properties/mine/${currentUser.id}`);
 }
 
-function renderMyProperties() {
+async function renderMyProperties() {
     const container = document.getElementById("myProperties");
     if (!container) return;
 
@@ -78,7 +81,7 @@ function renderMyProperties() {
         return;
     }
 
-    const myProperties = getMyProperties();
+    const myProperties = await getMyProperties();
     container.innerHTML = "";
 
     if (myProperties.length === 0) {

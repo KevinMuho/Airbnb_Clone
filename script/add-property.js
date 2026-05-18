@@ -69,120 +69,53 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-function postPropertyFromPage() {
-    const storage = window.AppStorage;
-    const currentUser = storage
-        ? storage.getCurrentUser()
-        : JSON.parse(localStorage.getItem("currentUser") || "null");
+async function postPropertyFromPage() {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
 
-    if (!currentUser) {
+    if (!currentUser || !currentUser.id) {
         alert("❌ You must be logged in to post properties!");
         window.location.href = "login.html";
         return;
     }
 
-    const user = currentUser;
-    const editId = localStorage.getItem("editingPropertyId");
-
-    const title = storage && storage.sanitizeInput 
-        ? storage.sanitizeInput(document.getElementById("title").value.trim())
-        : document.getElementById("title").value.trim();
-    const city = storage && storage.sanitizeInput
-        ? storage.sanitizeInput(document.getElementById("city").value.trim())
-        : document.getElementById("city").value.trim();
-    const country = storage && storage.sanitizeInput
-        ? storage.sanitizeInput(document.getElementById("country").value.trim())
-        : document.getElementById("country").value.trim();
+    const title = document.getElementById("title").value.trim();
+    const city = document.getElementById("city").value.trim();
+    const country = document.getElementById("country").value.trim();
     const propertyType = document.getElementById("propertyType").value;
-    const price = document.getElementById("price").value.trim();
-    const guests = document.getElementById("guests").value.trim();
-    const bedrooms = document.getElementById("bedrooms").value.trim();
-    const bathrooms = document.getElementById("bathrooms").value.trim();
-    const description = storage && storage.sanitizeInput
-        ? storage.sanitizeInput(document.getElementById("description").value.trim())
-        : document.getElementById("description").value.trim();
-    const amenitiesInput = document.getElementById("amenities").value.trim();
-    const imagesInput = document.getElementById("images").value.trim();
+    const price = Number(document.getElementById("price").value);
+    const guests = Number(document.getElementById("guests").value);
+    const bedrooms = Number(document.getElementById("bedrooms").value);
+    const bathrooms = Number(document.getElementById("bathrooms").value);
+    const description = document.getElementById("description").value.trim();
 
-    if (!title || !city || !country || !propertyType || !price) {
-        alert("❌ Please fill in all required fields!");
+    const imagesText = document.getElementById("images").value.trim();
+    const images = imagesText
+        ? imagesText.split(",").map(img => img.trim()).filter(Boolean)
+        : [];
+
+    if (!title || !city || !country || !propertyType || !price || !guests || !bedrooms || !bathrooms || !description) {
+        alert("❌ Please fill in all required fields.");
         return;
     }
 
-    const amenities = amenitiesInput
-    ? amenitiesInput.split(",").map(item => {
-        const trimmed = item.trim();
-        return storage && storage.sanitizeInput ? storage.sanitizeInput(trimmed) : trimmed;
-    }).filter(Boolean)
-    : [];
+    try {
+        const result = await apiRequest("/Properties/create", "POST", {
+            ownerId: currentUser.id,
+            title,
+            city,
+            country,
+            propertyType,
+            price,
+            guests,
+            bedrooms,
+            bathrooms,
+            description,
+            images
+        });
 
-const images = imagesInput
-    ? imagesInput.split(",").map(img => img.trim()).filter(Boolean)
-    : ["../images/Logo.png"];
-
-    let allProperties = storage
-        ? storage.getLS("properties", [])
-        : JSON.parse(localStorage.getItem("properties") || "[]");
-
-    if (editId) {
-        const existingProperty = allProperties.find(p => p.id == editId);
-
-        if (!existingProperty) {
-            alert("❌ Property not found!");
-            localStorage.removeItem("editingPropertyId");
-            return;
-        }
-
-        const updatedListing = {
-            ...existingProperty,
-            title: title,
-            city: city,
-            country: country,
-            propertyType: propertyType,
-            price: Number(price),
-            guests: guests ? Number(guests) : 0,
-            bedrooms: bedrooms ? Number(bedrooms) : 0,
-            bathrooms: bathrooms ? Number(bathrooms) : 0,
-            description: description,
-            amenities: amenities,
-            images: images
-        };
-
-        allProperties = allProperties.map(p =>
-            p.id == editId ? updatedListing : p
-        );
-
-        if (storage) storage.setLS("properties", allProperties);
-        else localStorage.setItem("properties", JSON.stringify(allProperties));
-        localStorage.removeItem("editingPropertyId");
-
-        alert("✅ Property updated successfully!");
+        alert(result.message);
         window.location.href = "property.html";
-        return;
+    } catch (error) {
+        alert("❌ " + error.message);
     }
-
-    const newListing = {
-        id: Date.now(),
-        title: title,
-        city: city,
-        country: country,
-        propertyType: propertyType,
-        price: Number(price),
-        guests: guests ? Number(guests) : 0,
-        bedrooms: bedrooms ? Number(bedrooms) : 0,
-        bathrooms: bathrooms ? Number(bathrooms) : 0,
-        description: description,
-        amenities: amenities,
-        images: images,
-        owner: user.username,
-        ownerName: user.firstName + " " + user.lastName,
-        createdAt: new Date().toISOString()
-    };
-
-    allProperties.push(newListing);
-    if (storage) storage.setLS("properties", allProperties);
-    else localStorage.setItem("properties", JSON.stringify(allProperties));
-
-    alert("✅ Property posted successfully!");
-    window.location.href = "property.html";
 }
